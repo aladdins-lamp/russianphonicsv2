@@ -1,0 +1,13 @@
+/* Minimal stylesheet to avoid 404 and provide small base styles */
+:root{
+  --bg: #f8fafc;
+}
+html,body,#root{height:100%;}
+body{
+  margin:0;
+  background:var(--bg);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+/* IPA font helper (Charis SIL) — index.html 已經 import 字體 */
+.ipa-font{font-family:'Charis SIL', serif;}
