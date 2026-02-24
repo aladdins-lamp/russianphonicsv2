@@ -1,0 +1,7 @@
+{
+  "name": "Russian Phonics v2.0",
+  "description": "A comprehensive Russian alphabet and phonics learning tool with high-quality TTS audio, IPA transcriptions, and offline-ready design.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
