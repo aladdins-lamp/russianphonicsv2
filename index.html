@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,8 +6,8 @@
   <title>Russian Phonics</title>
   <meta name="theme-color" content="#4f46e5">
   <link rel="manifest" href="manifest.json">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.tailwindcss.com" defer></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVJkEzyD6lkDNlzVUERLlEis8G6pSmW4IY7t5kFUVVoGSnUe4mZrvvkrkxvggArchSJ+E/wvA5g==" crossorigin="anonymous" referrerpolicy="no-referrer">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=Charis+SIL:ital,wght@0,400;0,700;1,400;1,700&display=swap');
     
@@ -16,6 +15,8 @@
       font-family: 'Inter', sans-serif;
       background-color: #f8fafc;
       -webkit-tap-highlight-color: transparent;
+      margin: 0;
+      padding: 0;
     }
 
     .ipa-font {
@@ -24,28 +25,659 @@
 
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    .animate-fadeIn { animation: fadeIn 0.3s ease-in; }
+    .animate-slideUp { animation: slideUp 0.4s ease-out; }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
   </style>
-<script type="importmap">
-{
-  "imports": {
-    "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "react": "https://esm.sh/react@^19.2.4",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
 </head>
 <body>
   <div id="root"></div>
+
   <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW registration failed:', err));
+    // ===== DATA =====
+    const CATEGORY = {
+      VOWELS: 'Vowels',
+      CONSONANTS: 'Consonants',
+      SIGNS: 'Signs'
+    };
+
+    const RUSSIAN_ALPHABET = [
+      { id: 'a', uppercase: 'А', lowercase: 'а', name: 'а', nameIpa: '[a]', category: CATEGORY.VOWELS, pronunciations: [{ ipa: '[a]', audioPrompt: 'а', label: 'Standard' }], description: 'Like "a" in father.', descriptionZh: '发音类似于汉语拼音的 "a"，如"爸爸"。', examples: [{ word: 'Ад', translation: 'Hell', translationZh: '地狱', transcription: '[at]' }, { word: 'Арбуз', translation: 'Watermelon', translationZh: '西瓜', transcription: '[ar-bus]' }, { word: 'Астрономия', translation: 'Astronomy', translationZh: '天文学', transcription: '[as-tra-no-mʲi-ja]' }] },
+      { id: 'b', uppercase: 'Б', lowercase: 'б', name: 'бэ', nameIpa: '[bɛ]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[b]', audioPrompt: 'ба', label: 'Hard' }, { ipa: '[bʲ]', audioPrompt: 'бя', label: 'Soft' }], description: 'Like "b" in boy. Softens before soft vowels.', descriptionZh: '发音类似于汉语拼音的 "b"，但在软元音前会变软。', examples: [{ word: 'Бог', translation: 'God', translationZh: '上帝', transcription: '[bok]' }, { word: 'Банан', translation: 'Banana', translationZh: '香蕉', transcription: '[ba-nan]' }, { word: 'Библиотека', translation: 'Library', translationZh: '图书馆', transcription: '[bʲi-blʲi-a-tʲe-ka]' }] },
+      { id: 'v', uppercase: 'В', lowercase: 'в', name: 'вэ', nameIpa: '[vɛ]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[v]', audioPrompt: 'ва', label: 'Hard' }, { ipa: '[vʲ]', audioPrompt: 'вя', label: 'Soft' }], description: 'Like "v" in van.', descriptionZh: '类似于英语的 "v"，上齿轻触下唇发音。', examples: [{ word: 'Век', translation: 'Century', translationZh: '世纪', transcription: '[vʲek]' }, { word: 'Весна', translation: 'Spring', translationZh: '春天', transcription: '[vʲe-sna]' }, { word: 'Велосипед', translation: 'Bicycle', translationZh: '自行车', transcription: '[vʲe-la-sʲi-pʲet]' }] },
+      { id: 'g', uppercase: 'Г', lowercase: 'г', name: 'гэ', nameIpa: '[gɛ]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[g]', audioPrompt: 'га', label: 'Standard' }], description: 'Like "g" in go.', descriptionZh: '发音类似于汉语拼音的 "g"，如"哥哥"。', examples: [{ word: 'Год', translation: 'Year', translationZh: '年', transcription: '[got]' }, { word: 'Город', translation: 'City', translationZh: '城市', transcription: '[go-rat]' }, { word: 'Государство', translation: 'State', translationZh: '国家', transcription: '[ga-su-dar-stva]' }] },
+      { id: 'd', uppercase: 'Д', lowercase: 'д', name: 'дэ', nameIpa: '[dɛ]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[d]', audioPrompt: 'да', label: 'Standard' }], description: 'Like "d" in dog.', descriptionZh: '发音类似于汉语拼音的 "d"，如"弟弟"。', examples: [{ word: 'Дом', translation: 'House', translationZh: '房子', transcription: '[dom]' }, { word: 'Дорога', translation: 'Road', translationZh: '路', transcription: '[da-ro-ga]' }, { word: 'Достопримечательность', translation: 'Attraction', translationZh: '景点', transcription: '[da-sta-prʲi-mʲe-tɕa-tʲelʲ-nastʲ]' }] },
+      { id: 'ye', uppercase: 'Е', lowercase: 'е', name: 'е', nameIpa: '[je]', category: CATEGORY.VOWELS, pronunciations: [{ ipa: '[je]', audioPrompt: 'е', label: 'Standard' }], description: 'Like "ye" in yes.', descriptionZh: '类似于汉语拼音的 "ye"，如"爷爷"。', examples: [{ word: 'Еда', translation: 'Food', translationZh: '食物', transcription: '[je-da]' }, { word: 'Европа', translation: 'Europe', translationZh: '欧洲', transcription: '[je-vro-pa]' }, { word: 'Естествознание', translation: 'Natural science', translationZh: '自然科学', transcription: '[je-stʲe-stva-zna-nʲi-je]' }] },
+      { id: 'yo', uppercase: 'Ё', lowercase: 'ё', name: 'ё', nameIpa: '[jo]', category: CATEGORY.VOWELS, pronunciations: [{ ipa: '[jo]', audioPrompt: 'ё', label: 'Standard' }], description: 'Like "yo" in yonder.', descriptionZh: '类似于汉语拼音的 "yo"，如"哟"。', examples: [{ word: 'Ёж', translation: 'Hedgehog', translationZh: '刺猬', transcription: '[josh]' }, { word: 'Ёлка', translation: 'Fir tree', translationZh: '圣诞树', transcription: '[jol-ka]' }, { word: 'Ёмкость', translation: 'Capacity', translationZh: '容器', transcription: '[jom-kastʲ]' }] },
+      { id: 'zh', uppercase: 'Ж', lowercase: 'ж', name: 'жэ', nameIpa: '[ʐɛ]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[ʐ]', audioPrompt: 'жа', label: 'Standard' }], description: 'Like "s" in treasure.', descriptionZh: '发音类似于汉语拼音的翘舌音 "r"，如"日"。', examples: [{ word: 'Жук', translation: 'Beetle', translationZh: '甲虫', transcription: '[ʐuk]' }, { word: 'Живот', translation: 'Stomach', translationZh: '肚子', transcription: '[ʐy-vot]' }, { word: 'Жизнедеятельность', translation: 'Vital activity', translationZh: '生命活动', transcription: '[ʐiz-nʲe-dʲe-ja-tʲelʲ-nastʲ]' }] },
+      { id: 'z', uppercase: 'З', lowercase: 'з', name: 'зэ', nameIpa: '[zɛ]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[z]', audioPrompt: 'за', label: 'Standard' }], description: 'Like "z" in zoo.', descriptionZh: '发音类似于汉语拼音的 "z"，如"左"，但带声。', examples: [{ word: 'Зал', translation: 'Hall', translationZh: '大厅', transcription: '[zal]' }, { word: 'Замок', translation: 'Castle', translationZh: '城堡', transcription: '[za-mak]' }, { word: 'Законодательство', translation: 'Legislation', translationZh: '立法', transcription: '[za-ka-na-da-tʲelʲ-stva]' }] },
+      { id: 'i', uppercase: 'И', lowercase: 'и', name: 'и', nameIpa: '[i]', category: CATEGORY.VOWELS, pronunciations: [{ ipa: '[i]', audioPrompt: 'и', label: 'Standard' }], description: 'Like "ee" in see.', descriptionZh: '发音类似于汉语拼音的 "i"，如"衣"。', examples: [{ word: 'Имя', translation: 'Name', translationZh: '名字', transcription: '[i-mʲa]' }, { word: 'Икона', translation: 'Icon', translationZh: '圣像', transcription: '[i-ko-na]' }, { word: 'Инструмент', translation: 'Instrument', translationZh: '工具', transcription: '[in-stru-mʲent]' }] },
+      { id: 'j', uppercase: 'Й', lowercase: 'й', name: 'и краткое', nameIpa: '[i ˈkratkəjə]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[j]', audioPrompt: 'и краткое', label: 'Standard' }], description: 'Like "y" in toy.', descriptionZh: '短促的 "i"，通常出现在元音后，类似于 "y"。', examples: [{ word: 'Чай', translation: 'Tea', translationZh: '茶', transcription: '[tɕaj]' }, { word: 'Йогурт', translation: 'Yogurt', translationZh: '酸奶', transcription: '[jo-gurt]' }, { word: 'Йошкар-Ола', translation: 'Yoshkar-Ola', translationZh: '约什卡尔奥拉', transcription: '[josh-kar-a-la]' }] },
+      { id: 'k', uppercase: 'К', lowercase: 'к', name: 'ка', nameIpa: '[ka]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[k]', audioPrompt: 'ка', label: 'Standard' }], description: 'Like "k" in kitten.', descriptionZh: '发音类似于汉语拼音的 "k"，如"课"。', examples: [{ word: 'Кот', translation: 'Cat', translationZh: '猫', transcription: '[kot]' }, { word: 'Книга', translation: 'Book', translationZh: '书', transcription: '[knʲi-ga]' }, { word: 'Компьютер', translation: 'Computer', translationZh: '电脑', transcription: '[kam-pju-tʲer]' }] },
+      { id: 'l', uppercase: 'Л', lowercase: 'л', name: 'эль', nameIpa: '[elʲ]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[ɫ]', audioPrompt: 'ла', label: 'Hard' }, { ipa: '[lʲ]', audioPrompt: 'ля', label: 'Soft' }], description: 'Like "l" in lamp.', descriptionZh: '发音类似于汉语拼音的 "l"，如"乐"。', examples: [{ word: 'Лес', translation: 'Forest', translationZh: '森林', transcription: '[lʲes]' }, { word: 'Лимон', translation: 'Lemon', translationZh: '柠檬', transcription: '[lʲi-mon]' }, { word: 'Литература', translation: 'Literature', translationZh: '文学', transcription: '[lʲi-tʲe-ra-tu-ra]' }] },
+      { id: 'm', uppercase: 'М', lowercase: 'м', name: 'эм', nameIpa: '[em]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[m]', audioPrompt: 'ма', label: 'Standard' }], description: 'Like "m" in map.', descriptionZh: '发音类似于汉语拼音的 "m"，如"妈"。', examples: [{ word: 'Мир', translation: 'World', translationZh: '世界/和平', transcription: '[mʲir]' }, { word: 'Музыка', translation: 'Music', translationZh: '音乐', transcription: '[mu-zy-ka]' }, { word: 'Математика', translation: 'Mathematics', translationZh: '数学', transcription: '[ma-tʲe-ma-tʲi-ka]' }] },
+      { id: 'n', uppercase: 'Н', lowercase: 'н', name: 'эн', nameIpa: '[en]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[n]', audioPrompt: 'на', label: 'Standard' }], description: 'Like "n" in no.', descriptionZh: '发音类似于汉语拼音的 "n"，如"那"。', examples: [{ word: 'Нос', translation: 'Nose', translationZh: '鼻子', transcription: '[nos]' }, { word: 'Небо', translation: 'Sky', translationZh: '天空', transcription: '[nʲe-ba]' }, { word: 'Независимость', translation: 'Independence', translationZh: '独立', transcription: '[nʲe-za-vʲi-sʲi-mastʲ]' }] },
+      { id: 'o', uppercase: 'О', lowercase: 'о', name: 'о', nameIpa: '[o]', category: CATEGORY.VOWELS, pronunciations: [{ ipa: '[o]', audioPrompt: 'о', label: 'Stressed' }, { ipa: '[a]', audioPrompt: 'а', label: 'Unstressed' }], description: 'Pronounced [o] when stressed, and [a] when unstressed.', descriptionZh: '重读时发 [o]，非重读时弱化为 [a]。', examples: [{ word: 'Оса', translation: 'Wasp', translationZh: '黄蜂', transcription: '[a-sa]' }, { word: 'Океан', translation: 'Ocean', translationZh: '海洋', transcription: '[a-kʲe-an]' }, { word: 'Образование', translation: 'Education', translationZh: '教育', transcription: '[a-bra-za-va-nʲi-je]' }] },
+      { id: 'p', uppercase: 'П', lowercase: 'п', name: 'пэ', nameIpa: '[pɛ]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[p]', audioPrompt: 'па', label: 'Standard' }], description: 'Like "p" in pet.', descriptionZh: '发音类似于汉语拼音的 "p"，如"怕"。', examples: [{ word: 'Папа', translation: 'Dad', translationZh: '爸爸', transcription: '[pa-pa]' }, { word: 'Погода', translation: 'Weather', translationZh: '天气', transcription: '[pa-go-da]' }, { word: 'Преподаватель', translation: 'Teacher', translationZh: '老师', transcription: '[prʲi-pa-da-va-tʲelʲ]' }] },
+      { id: 'r', uppercase: 'Р', lowercase: 'р', name: 'эр', nameIpa: '[er]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[r]', audioPrompt: 'ра', label: 'Standard' }], description: 'Rolled "r".', descriptionZh: '颤音（大舌音），舌尖颤动。', examples: [{ word: 'Рот', translation: 'Mouth', translationZh: '嘴', transcription: '[rot]' }, { word: 'Россия', translation: 'Russia', translationZh: '俄罗斯', transcription: '[ra-sʲi-ja]' }, { word: 'Расписание', translation: 'Schedule', translationZh: '课表/计划', transcription: '[ras-pʲi-sa-nʲi-je]' }] },
+      { id: 's', uppercase: 'С', lowercase: 'с', name: 'эс', nameIpa: '[es]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[s]', audioPrompt: 'са', label: 'Standard' }], description: 'Like "s" in set.', descriptionZh: '发音类似于汉语拼音的 "s"，如"思"。', examples: [{ word: 'Сын', translation: 'Son', translationZh: '儿子', transcription: '[syn]' }, { word: 'Солнце', translation: 'Sun', translationZh: '太阳', transcription: '[son-tse]' }, { word: 'Стихотворение', translation: 'Poem', translationZh: '诗', transcription: '[stʲi-xa-tva-rʲe-nʲi-je]' }] },
+      { id: 't', uppercase: 'Т', lowercase: 'т', name: 'тэ', nameIpa: '[tɛ]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[t]', audioPrompt: 'та', label: 'Standard' }], description: 'Like "t" in tea.', descriptionZh: '发音类似于汉语拼音的 "t"，如"特"。', examples: [{ word: 'Тигр', translation: 'Tiger', translationZh: '老虎', transcription: '[tʲigr]' }, { word: 'Театр', translation: 'Theater', translationZh: '剧院', transcription: '[tʲi-atr]' }, { word: 'Телевидение', translation: 'Television', translationZh: '电视', transcription: '[tʲi-lʲi-vʲi-dʲe-nʲi-je]' }] },
+      { id: 'u', uppercase: 'У', lowercase: 'у', name: 'у', nameIpa: '[u]', category: CATEGORY.VOWELS, pronunciations: [{ ipa: '[u]', audioPrompt: 'у', label: 'Standard' }], description: 'Like "oo" in boot.', descriptionZh: '发音类似于汉语拼音的 "u"，如"五"。', examples: [{ word: 'Ухо', translation: 'Ear', translationZh: '耳朵', transcription: '[u-xa]' }, { word: 'Улица', translation: 'Street', translationZh: '街道', transcription: '[u-lʲi-tsa]' }, { word: 'Университет', translation: 'University', translationZh: '大学', transcription: '[u-nʲi-vʲir-sʲi-tʲet]' }] },
+      { id: 'f', uppercase: 'Ф', lowercase: 'ф', name: 'эф', nameIpa: '[ef]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[f]', audioPrompt: 'фа', label: 'Standard' }], description: 'Like "f" in face.', descriptionZh: '发音类似于汉语拼音的 "f"，如"佛"。', examples: [{ word: 'Флаг', translation: 'Flag', translationZh: '旗帜', transcription: '[flak]' }, { word: 'Физика', translation: 'Physics', translationZh: '物理', transcription: '[fʲi-zʲi-ka]' }, { word: 'Фотография', translation: 'Photograph', translationZh: '照片', transcription: '[fa-ta-gra-fʲi-ja]' }] },
+      { id: 'h', uppercase: 'Х', lowercase: 'х', name: 'ха', nameIpa: '[xa]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[x]', audioPrompt: 'ха', label: 'Standard' }], description: 'Like "ch" in Loch.', descriptionZh: '发音类似于汉语拼音的 "h"，如"喝"。', examples: [{ word: 'Хор', translation: 'Choir', translationZh: '合唱团', transcription: '[xor]' }, { word: 'Хорошо', translation: 'Good', translationZh: '好', transcription: '[xa-ra-sho]' }, { word: 'Хлебобулочные', translation: 'Bakery products', translationZh: '烘焙产品', transcription: '[hlʲe-ba-bu-ɫatɕ-ny-je]' }] },
+      { id: 'ts', uppercase: 'Ц', lowercase: 'ц', name: 'цэ', nameIpa: '[tsɛ]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[ts]', audioPrompt: 'ца', label: 'Standard' }], description: 'Like "ts" in sits.', descriptionZh: '发音类似于汉语拼音的 "ts"，如"磁"。', examples: [{ word: 'Цирк', translation: 'Circus', translationZh: '马戏团', transcription: '[tsyrk]' }, { word: 'Цветок', translation: 'Flower', translationZh: '花', transcription: '[tsʲvʲe-tok]' }, { word: 'Цивилизация', translation: 'Civilization', translationZh: '文明', transcription: '[tsy-vʲi-lʲi-za-tsy-ja]' }] },
+      { id: 'ch', uppercase: 'Ч', lowercase: 'ч', name: 'че', nameIpa: '[tɕe]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[tɕ]', audioPrompt: 'ча', label: 'Standard' }], description: 'Like "ch" in cheap.', descriptionZh: '发音类似于汉语拼音的 "q"，如"七"。', examples: [{ word: 'Чай', translation: 'Tea', translationZh: '茶', transcription: '[tɕaj]' }, { word: 'Человек', translation: 'Human', translationZh: '人', transcription: '[tɕi-la-vʲek]' }, { word: 'Чрезвычайный', translation: 'Emergency', translationZh: '紧急', transcription: '[tɕrʲez-vy-tɕaj-nyj]' }] },
+      { id: 'sh', uppercase: 'Ш', lowercase: 'ш', name: 'ша', nameIpa: '[ʂa]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[ʂ]', audioPrompt: 'ша', label: 'Standard' }], description: 'Like "sh" in shut.', descriptionZh: '发音类似于汉语拼音的翘舌音 "sh"，如"师"。', examples: [{ word: 'Шар', translation: 'Ball', translationZh: '球', transcription: '[ʂar]' }, { word: 'Школа', translation: 'School', translationZh: '学校', transcription: '[ʂko-ɫa]' }, { word: 'Шахматистка', translation: 'Chess player (f)', translationZh: '女棋手', transcription: '[ʂax-ma-tʲis-tka]' }] },
+      { id: 'shch', uppercase: 'Щ', lowercase: 'щ', name: 'ща', nameIpa: '[ɕːa]', category: CATEGORY.CONSONANTS, pronunciations: [{ ipa: '[ɕː]', audioPrompt: 'ща', label: 'Standard' }], description: 'Long soft "sh".', descriptionZh: '发音类似于汉语拼音的 "x"，如"西"，发音稍长且软。', examples: [{ word: 'Щи', translation: 'Soup', translationZh: '白菜汤', transcription: '[ɕːi]' }, { word: 'Щётка', translation: 'Brush', translationZh: '刷子', transcription: '[ɕːot-ka]' }, { word: 'Щепетильность', translation: 'Scrupulousness', translationZh: '审慎', transcription: '[ɕːe-pʲe-tʲilʲ-nastʲ]' }] },
+      { id: 'hard_sign', uppercase: 'Ъ', lowercase: 'ъ', name: 'твёрдый знак', nameIpa: '[ˈtvʲordɨj znak]', category: CATEGORY.SIGNS, pronunciations: [{ ipa: '-', audioPrompt: 'твёрдый знак', label: 'Sign Name' }], description: 'Prevents softening of consonants.', descriptionZh: '硬音符号，不发音，分隔前面的辅音和后面的元音，防止辅音软化。', examples: [{ word: 'Объезд', translation: 'Bypass', translationZh: '绕道', transcription: '[ab-jest]' }, { word: 'Подъезд', translation: 'Entrance', translationZh: '入口/门厅', transcription: '[pad-jest]' }, { word: 'Объективность', translation: 'Objectivity', translationZh: '客观性', transcription: '[ab-jek-tʲiv-nastʲ]' }] },
+      { id: 'y_vowel', uppercase: 'Ы', lowercase: 'ы', name: 'ы', nameIpa: '[ɨ]', category: CATEGORY.VOWELS, pronunciations: [{ ipa: '[ɨ]', audioPrompt: 'ы', label: 'Standard' }], description: 'Hard "i" sound.', descriptionZh: '发音类似于"衣"，但舌根后缩，带一点"额"的味道。', examples: [{ word: 'Мы', translation: 'We', translationZh: '我们', transcription: '[my]' }, { word: 'Рыба', translation: 'Fish', translationZh: '鱼', transcription: '[ry-ba]' }, { word: 'Выздоровление', translation: 'Recovery', translationZh: '康复', transcription: '[vy-zda-ra-vlʲe-nʲi-je]' }] },
+      { id: 'soft_sign', uppercase: 'Ь', lowercase: 'ь', name: 'мягкий знак', nameIpa: '[ˈmʲæxʲkʲɪj znak]', category: CATEGORY.SIGNS, pronunciations: [{ ipa: '-', audioPrompt: 'мягкий знак', label: 'Sign Name' }], description: 'Softens the preceding consonant.', descriptionZh: '软音符号，不发音，使前面的辅音软化。', examples: [{ word: 'Мать', translation: 'Mother', translationZh: '母亲', transcription: '[matʲ]' }, { word: 'Медведь', translation: 'Bear', translationZh: '熊', transcription: '[mʲed-vʲetʲ]' }, { word: 'Промышленность', translation: 'Industry', translationZh: '工业', transcription: '[pra-mysh-lʲen-nastʲ]' }] },
+      { id: 'e_rev', uppercase: 'Э', lowercase: 'э', name: 'э', nameIpa: '[ɛ]', category: CATEGORY.VOWELS, pronunciations: [{ ipa: '[ɛ]', audioPrompt: 'э', label: 'Standard' }], description: 'Like "e" in met.', descriptionZh: '类似于汉语拼音的 "e"，如"也"。', examples: [{ word: 'Это', translation: 'This', translationZh: '这个', transcription: '[e-ta]' }, { word: 'Экран', translation: 'Screen', translationZh: '屏幕', transcription: '[ek-ran]' }, { word: 'Электростанция', translation: 'Power plant', translationZh: '发电站', transcription: '[e-lʲek-tra-stan-tsy-ja]' }] },
+      { id: 'yu', uppercase: 'Ю', lowercase: 'ю', name: 'ю', nameIpa: '[ju]', category: CATEGORY.VOWELS, pronunciations: [{ ipa: '[ju]', audioPrompt: 'ю', label: 'Standard' }], description: 'Like "u" in universe.', descriptionZh: '类似于汉语拼音的 "you"，如"邮"。', examples: [{ word: 'Юг', translation: 'South', translationZh: '南方', transcription: '[juk]' }, { word: 'Юмор', translation: 'Humor', translationZh: '幽默', transcription: '[ju-mar]' }, { word: 'Юриспруденция', translation: 'Jurisprudence', translationZh: '法学', transcription: '[ju-rʲis-pru-dʲen-tsy-ja]' }] },
+      { id: 'ya', uppercase: 'Я', lowercase: 'я', name: 'я', nameIpa: '[ja]', category: CATEGORY.VOWELS, pronunciations: [{ ipa: '[ja]', audioPrompt: 'я', label: 'Standard' }], description: 'Like "ya" in yard.', descriptionZh: '类似于汉语拼音的 "ya"，如"牙"。', examples: [{ word: 'Я', translation: 'I', translationZh: '我', transcription: '[ja]' }, { word: 'Яблоко', translation: 'Apple', translationZh: '苹果', transcription: '[jab-la-ka]' }, { word: 'Ясновидение', translation: 'Clairvoyance', translationZh: '透视/预见', transcription: '[jas-na-vʲi-dʲe-nʲi-je]' }] }
+    ];
+
+    const PHONICS_RULES = [
+      { id: 'vowel_reduction_o', title: 'Vowel Reduction of "О"', titleZh: '元音 "О" 的弱化', category: 'Vowels', description: 'In unstressed syllables, the letter "О" is pronounced like [a].', descriptionZh: '在非重读音节中，字母 "О" 读作 [a]。', examples: [{ word: 'Молоко', translation: 'Milk', translationZh: '牛奶', transcription: '[ma-la-ko]' }, { word: 'Москва', translation: 'Moscow', translationZh: '莫斯科', transcription: '[mas-kva]' }] },
+      { id: 'devoicing', title: 'Final Consonant Devoicing', titleZh: '词尾辅音清化', category: 'Consonants', description: 'Voiced consonants (б, в, г, д, ж, з) become voiceless at word ends.', descriptionZh: '浊辅音（б, в, г, д, ж, з）在词尾时会变为对应的清辅音。', examples: [{ word: 'Друг', translation: 'Friend', translationZh: '朋友', transcription: '[druk]' }, { word: 'Хлеб', translation: 'Bread', translationZh: '面包', transcription: '[hlʲep]' }] }
+    ];
+
+    const UI_TRANSLATIONS = {
+      en: {
+        appTitle: "RUSSIAN PHONICS",
+        subtitle: "Master the Cyrillic alphabet and pronunciation",
+        alphabet: "Alphabet",
+        rules: "Rules",
+        reader: "Reader",
+        home: "Home",
+        install: "Install App",
+        quickStart: "Quick Start",
+        browseLetters: "Browse 33 Russian letters",
+        soundEncyclopedia: "Encyclopedia of sounds",
+        listenCustomText: "Listen to custom Russian text",
+        all: "All",
+        Vowels: "Vowels",
+        Consonants: "Consonants",
+        Signs: "Signs",
+        letterDetails: "Letter Details",
+        letterName: "Letter Name",
+        pronunciations: "Pronunciations (IPA)",
+        usageContext: "Usage Context",
+        levelExamples: "Level-Based Examples",
+        ruleInsight: "Rule Insight",
+        appliedExamples: "Applied Examples",
+        lettersCount: "letters",
+        Standard: "Standard",
+        Stressed: "Stressed",
+        Unstressed: "Unstressed",
+        Hard: "Hard",
+        Soft: "Soft",
+        "Sign Name": "Sign Name",
+        readerPlaceholder: "Paste or type Russian text here... (Use Enter for new segments)",
+        readerConfirm: "Confirm",
+        readerWarningSpecial: "Special characters detected and removed.",
+        readerWarningLong: "Some segments are very long (>200 chars), which might be hard to follow. Continue?",
+        readerWarningLimit: "Text exceeds 5000 characters or 100 segments.",
+        readerEmpty: "No valid Russian text found.",
+        readerSegments: "Audio Segments",
+        readerSegmentHint: "Each segment represents a line break in your text."
+      },
+      zh: {
+        appTitle: "俄语拼读",
+        subtitle: "掌握西里尔字母及其发音",
+        alphabet: "字母表",
+        rules: "规则",
+        reader: "文本朗读",
+        home: "首页",
+        install: "安装应用",
+        quickStart: "快速开始",
+        browseLetters: "浏览 33 个俄语字母",
+        soundEncyclopedia: "发音百科全书",
+        listenCustomText: "聆听自定义俄语文本",
+        all: "全部",
+        Vowels: "元音",
+        Consonants: "辅音",
+        Signs: "符号",
+        letterDetails: "字母详情",
+        letterName: "字母名称",
+        pronunciations: "发音 (IPA)",
+        usageContext: "使用语境",
+        levelExamples: "示例词汇",
+        ruleInsight: "规则解析",
+        appliedExamples: "应用示例",
+        lettersCount: "个字母",
+        Standard: "标准",
+        Stressed: "重读",
+        Unstressed: "非重读",
+        Hard: "硬音",
+        Soft: "软音",
+        "Sign Name": "符号名称",
+        readerPlaceholder: "在此处粘贴或输入俄语文本... (回车键用于分段)",
+        readerConfirm: "确认生成",
+        readerWarningSpecial: "检测到特殊字符并已移除。",
+        readerWarningLong: "部分段落过长（超过200字），可能不利于跟读学习。是否继续？",
+        readerWarningLimit: "文本超过 5000 字符或 100 个段落限制。",
+        readerEmpty: "未发现有效的俄语文本段落。",
+        readerSegments: "分段发音",
+        readerSegmentHint: "每一行都会被识别为一个独立的发音分段。"
+      }
+    };
+
+    // ===== STATE =====
+    let state = {
+      view: 'home',
+      language: 'en',
+      selectedLetter: null,
+      selectedRule: null,
+      activeCategory: 'All',
+      readerText: '',
+      processedSegments: [],
+      showSpecialCharWarning: false,
+      deferredPrompt: null,
+      voicesRef: null,
+      selectedVoiceName: null,
+      isPlaying: false,
+      isLoading: false
+    };
+
+    // ===== TTS & SPEECH =====
+    function initVoices() {
+      if (!('speechSynthesis' in window)) return;
+      const voices = window.speechSynthesis.getVoices();
+      if (voices && voices.length) {
+        state.voicesRef = voices;
+        const ruVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('ru')) || voices.find(v => /ru|russian/i.test(v.name || ''));
+        if (ruVoice) state.selectedVoiceName = ruVoice.name || `${ruVoice.lang}`;
+      }
+    }
+
+    function playAudio(text, slow = false) {
+      return new Promise((resolve) => {
+        if (!('speechSynthesis' in window)) resolve();
+        
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'ru-RU';
+        utter.rate = slow ? 0.75 : 1.0;
+        utter.pitch = 1.0;
+
+        const voices = state.voicesRef || window.speechSynthesis.getVoices();
+        if (voices && voices.length) {
+          const ruVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('ru')) || voices.find(v => /ru|russian/i.test(v.name || ''));
+          if (ruVoice) {
+            utter.voice = ruVoice;
+            state.selectedVoiceName = ruVoice.name || `${ruVoice.lang}`;
+          }
+        }
+
+        utter.onend = () => {
+          state.isPlaying = false;
+          render();
+          resolve();
+        };
+        utter.onerror = () => {
+          state.isPlaying = false;
+          render();
+          resolve();
+        };
+
+        state.isPlaying = true;
+        state.isLoading = false;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utter);
       });
     }
+
+    // ===== HELPERS =====
+    function t(key) {
+      return UI_TRANSLATIONS[state.language][key] || key;
+    }
+
+    function processInput(input) {
+      const allowedRegex = /[а-яА-ЯёЁ0-9\s.,!?;:()\-—]/g;
+      const specialRegex = /[^а-яА-ЯёЁ0-9\s.,!?;:()\-—]/;
+      
+      if (specialRegex.test(input)) {
+        state.showSpecialCharWarning = true;
+        setTimeout(() => { state.showSpecialCharWarning = false; render(); }, 3000);
+      }
+
+      const cleaned = input.match(allowedRegex)?.join('') || '';
+      return cleaned.slice(0, 5000);
+    }
+
+    function getCategoryColor(cat) {
+      switch (cat) {
+        case CATEGORY.VOWELS: return 'bg-red-50 border-red-200 text-red-700';
+        case CATEGORY.CONSONANTS: return 'bg-blue-50 border-blue-200 text-blue-700';
+        case CATEGORY.SIGNS: return 'bg-gray-50 border-gray-200 text-gray-700';
+        default: return 'bg-white border-gray-100';
+      }
+    }
+
+    // ===== RENDER FUNCTIONS =====
+    function renderHome() {
+      const filteredAlphabet = state.activeCategory === 'All' ? RUSSIAN_ALPHABET : RUSSIAN_ALPHABET.filter(l => l.category === state.activeCategory);
+      
+      return `
+        <div class="flex flex-col gap-6 p-4 animate-fadeIn">
+          <header class="py-8 text-center relative">
+            <h1 class="text-5xl font-black text-indigo-900 mb-2">${t('appTitle')}</h1>
+            <p class="text-gray-500 font-medium">${t('subtitle')}</p>
+          </header>
+          
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <button onclick="setState({view: 'alphabet'})" class="flex flex-col items-center justify-center p-8 bg-white border-2 border-transparent hover:border-indigo-500 shadow-xl rounded-[2rem] transition-all group">
+              <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">
+                <i class="fas fa-font"></i>
+              </div>
+              <h2 class="text-2xl font-black text-gray-800">${t('alphabet')}</h2>
+              <p class="text-gray-500 text-sm mt-2">${t('browseLetters')}</p>
+            </button>
+
+            <button onclick="setState({view: 'rules'})" class="flex flex-col items-center justify-center p-8 bg-white border-2 border-transparent hover:border-emerald-500 shadow-xl rounded-[2rem] transition-all group">
+              <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">
+                <i class="fas fa-book"></i>
+              </div>
+              <h2 class="text-2xl font-black text-gray-800">${t('rules')}</h2>
+              <p class="text-gray-500 text-sm mt-2">${t('soundEncyclopedia')}</p>
+            </button>
+
+            <button onclick="setState({view: 'reader'})" class="flex flex-col items-center justify-center p-8 bg-white border-2 border-transparent hover:border-amber-500 shadow-xl rounded-[2rem] transition-all group">
+              <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">
+                <i class="fas fa-volume-high"></i>
+              </div>
+              <h2 class="text-2xl font-black text-gray-800">${t('reader')}</h2>
+              <p class="text-gray-500 text-sm mt-2">${t('listenCustomText')}</p>
+            </button>
+          </div>
+
+          <section class="mt-8">
+            <h3 class="text-xl font-black text-gray-800 mb-6 px-2 flex items-center gap-2">
+              <i class="fas fa-bolt text-amber-500"></i> ${t('quickStart')}
+            </h3>
+            <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
+              ${RUSSIAN_ALPHABET.slice(0, 10).map(letter => `
+                <button onclick="setState({selectedLetter: '${letter.id}', view: 'letter-detail'})" 
+                  class="${getCategoryColor(letter.category)} flex flex-col items-center justify-center p-4 rounded-xl border cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-1 active:scale-95 aspect-square">
+                  <div class="text-3xl font-bold mb-1">${letter.uppercase}${letter.lowercase}</div>
+                  <div class="ipa-font text-xs font-medium opacity-70">${letter.nameIpa}</div>
+                </button>
+              `).join('')}
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
+    function renderAlphabet() {
+      const filteredAlphabet = state.activeCategory === 'All' ? RUSSIAN_ALPHABET : RUSSIAN_ALPHABET.filter(l => l.category === state.activeCategory);
+      
+      return `
+        <div class="p-4 animate-fadeIn">
+          <div class="sticky top-0 bg-[#f8fafc]/90 backdrop-blur-xl z-20 py-4 mb-6 flex flex-col gap-4">
+            <div class="flex items-center gap-3">
+              <button onclick="setState({view: 'home'})" class="w-10 h-10 flex items-center justify-center bg-white shadow-sm border border-gray-100 rounded-xl hover:bg-gray-100">
+                <i class="fas fa-arrow-left"></i>
+              </button>
+              <h1 class="text-3xl font-black text-gray-900 tracking-tight">${t('alphabet')}</h1>
+              <button onclick="setState({language: state.language === 'en' ? 'zh' : 'en'})" class="ml-auto px-3 py-1 bg-indigo-600 text-white rounded-lg text-xs font-bold">
+                ${state.language === 'en' ? '中文' : 'EN'}
+              </button>
+            </div>
+            <div class="flex gap-2 overflow-x-auto py-3 px-1 -mx-1 no-scrollbar scroll-smooth">
+              ${['All', CATEGORY.VOWELS, CATEGORY.CONSONANTS, CATEGORY.SIGNS].map(cat => `
+                <button onclick="setState({activeCategory: '${cat}'})" 
+                  class="px-5 py-2 rounded-2xl text-sm font-bold whitespace-nowrap transition-all ${state.activeCategory === cat ? 'bg-indigo-600 text-white shadow-indigo-100 shadow-md' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 shadow-sm'}">
+                  ${t(cat)}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-4">
+            ${filteredAlphabet.map(letter => `
+              <button onclick="setState({selectedLetter: '${letter.id}', view: 'letter-detail'})"
+                class="${getCategoryColor(letter.category)} flex flex-col items-center justify-center p-4 rounded-xl border cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-1 active:scale-95 aspect-square">
+                <div class="text-3xl font-bold mb-1">${letter.uppercase}${letter.lowercase}</div>
+                <div class="ipa-font text-xs font-medium opacity-70">${letter.nameIpa}</div>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderRules() {
+      return `
+        <div class="p-4 animate-fadeIn">
+          <div class="flex items-center gap-3 mb-8">
+            <button onclick="setState({view: 'home'})" class="w-10 h-10 flex items-center justify-center bg-white shadow-sm border border-gray-100 rounded-xl">
+              <i class="fas fa-arrow-left"></i>
+            </button>
+            <h1 class="text-3xl font-black text-gray-900 tracking-tight">${t('rules')}</h1>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            ${PHONICS_RULES.map(rule => `
+              <button onclick="setState({selectedRule: '${rule.id}', view: 'rule-detail'})" class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm cursor-pointer transition-all hover:shadow-md hover:border-indigo-300">
+                <div class="flex justify-between items-center mb-2">
+                  <span class="text-xs font-bold uppercase tracking-wider text-indigo-500">${t(rule.category)}</span>
+                  <i class="fas fa-chevron-right text-gray-300 text-sm"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-800 mb-2">${state.language === 'zh' ? rule.titleZh : rule.title}</h3>
+                <p class="text-sm text-gray-500 line-clamp-2">${state.language === 'zh' ? rule.descriptionZh : rule.description}</p>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderReader() {
+      return `
+        <div class="p-4 animate-fadeIn">
+          <div class="flex items-center gap-3 mb-6">
+            <button onclick="setState({view: 'home'})" class="w-10 h-10 flex items-center justify-center bg-white shadow-sm border border-gray-100 rounded-xl">
+              <i class="fas fa-arrow-left"></i>
+            </button>
+            <h1 class="text-3xl font-black text-gray-900 tracking-tight">${t('reader')}</h1>
+          </div>
+
+          <div class="relative">
+            ${state.showSpecialCharWarning ? `
+              <div class="absolute top-4 right-4 z-30 bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg animate-bounce">
+                <i class="fas fa-exclamation-triangle mr-2"></i> ${t('readerWarningSpecial')}
+              </div>
+            ` : ''}
+            
+            <textarea id="readerInput" placeholder="${t('readerPlaceholder')}"
+              class="w-full h-80 p-8 text-xl text-gray-800 bg-white border-2 border-gray-100 rounded-[2.5rem] shadow-xl focus:border-indigo-400 focus:ring-0 resize-none outline-none transition-all placeholder:text-gray-300"
+              oninput="setState({readerText: document.getElementById('readerInput').value})">${state.readerText}</textarea>
+            
+            <div class="flex justify-between items-center mt-6 px-2">
+              <div class="text-xs font-bold text-gray-400">
+                ${state.readerText.length} / 5000 ${t('lettersCount')}
+              </div>
+              <button onclick="confirmReader()"
+                ${!state.readerText.trim() ? 'disabled' : ''}
+                class="px-10 py-4 rounded-full font-black text-lg transition-all shadow-xl ${state.readerText.trim() ? 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}">
+                ${t('readerConfirm')}
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderReaderOutput() {
+      return `
+        <div class="p-4 animate-slideUp">
+          <div class="flex items-center gap-3 mb-6">
+            <button onclick="setState({view: 'reader'})" class="w-10 h-10 flex items-center justify-center bg-white shadow-sm border border-gray-100 rounded-xl">
+              <i class="fas fa-arrow-left"></i>
+            </button>
+            <h1 class="text-3xl font-black text-gray-900 tracking-tight">${t('readerSegments')}</h1>
+          </div>
+
+          <p class="text-gray-500 mb-8 px-2 font-medium">${t('readerSegmentHint')}</p>
+
+          <div class="space-y-4">
+            ${state.processedSegments.map((segment, i) => `
+              <div class="bg-white p-8 rounded-[2rem] shadow-lg border border-gray-50 transition-all hover:border-indigo-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div class="flex-1">
+                  <span class="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2 block">Segment #${i + 1}</span>
+                  <p class="text-2xl text-gray-800 font-bold leading-snug">${segment}</p>
+                </div>
+                <div class="flex items-center gap-4 shrink-0">
+                  <button onclick="playSegment('${segment}', false)" class="w-14 h-14 flex items-center justify-center rounded-full border bg-white text-indigo-600 border-indigo-100 hover:bg-indigo-50 shadow-sm transition-all">
+                    <i class="fas fa-play ml-0.5"></i>
+                  </button>
+                  <button onclick="playSegment('${segment}', true)" class="w-10 h-10 flex items-center justify-center rounded-full border bg-white text-indigo-300 border-indigo-50 hover:bg-indigo-50/20 shadow-sm transition-all opacity-50">
+                    <i class="fas fa-play ml-0.5 text-xs"></i>
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderLetterDetail() {
+      if (!state.selectedLetter) return '';
+      const letter = RUSSIAN_ALPHABET.find(l => l.id === state.selectedLetter);
+      if (!letter) return '';
+
+      return `
+        <div class="p-4 animate-slideUp">
+          <div class="flex items-center gap-3 mb-6">
+            <button onclick="setState({view: 'alphabet'})" class="w-10 h-10 flex items-center justify-center bg-white shadow-sm border border-gray-100 rounded-xl">
+              <i class="fas fa-arrow-left"></i>
+            </button>
+            <h1 class="text-xl font-black text-gray-800 uppercase tracking-widest">${t('letterDetails')}</h1>
+          </div>
+
+          <div class="bg-white rounded-[3rem] shadow-2xl overflow-hidden mb-8">
+            <div class="p-12 flex flex-col items-center justify-center ${letter.category === CATEGORY.VOWELS ? 'bg-red-50' : letter.category === CATEGORY.CONSONANTS ? 'bg-blue-50' : 'bg-gray-50'}">
+              <span class="text-9xl font-black text-gray-900 mb-4 drop-shadow-sm">${letter.uppercase}${letter.lowercase}</span>
+              <div class="flex items-center gap-6 mt-4">
+                <div class="text-center">
+                  <div class="text-xs text-gray-400 uppercase font-black tracking-widest">${t('letterName')}</div>
+                  <div class="text-2xl font-bold text-gray-800">
+                    ${letter.name} 
+                    <span class="ipa-font text-indigo-500 opacity-60 ml-2">${letter.nameIpa}</span>
+                  </div>
+                </div>
+                <button onclick="playSegment('${letter.name}', false)" class="w-16 h-16 flex items-center justify-center rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-lg">
+                  <i class="fas fa-play ml-0.5 text-2xl"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="p-8 md:p-12">
+              <div class="mb-10">
+                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">${t('pronunciations')}</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  ${letter.pronunciations.map((pron, idx) => `
+                    <div class="flex items-center justify-between p-6 bg-slate-50 rounded-[2rem] border border-slate-100 shadow-sm transition-all hover:bg-white">
+                      <div class="flex flex-col">
+                        ${pron.label ? `<span class="text-[10px] font-black uppercase text-indigo-400 tracking-wider">${t(pron.label)}</span>` : ''}
+                        <span class="ipa-font text-4xl text-indigo-600 font-bold">${pron.ipa}</span>
+                      </div>
+                      <button onclick="playSegment('${pron.audioPrompt}', false)" class="w-12 h-12 flex items-center justify-center rounded-full bg-indigo-600 text-white hover:bg-indigo-700">
+                        <i class="fas fa-play ml-0.5"></i>
+                      </button>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+
+              <div class="mb-10">
+                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">${t('usageContext')}</h3>
+                <p class="text-xl text-gray-700 leading-relaxed font-medium">
+                  ${state.language === 'zh' ? letter.descriptionZh : letter.description}
+                </p>
+              </div>
+
+              <div>
+                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">${t('levelExamples')}</h3>
+                <div class="space-y-4">
+                  ${letter.examples.map((ex, i) => `
+                    <div class="flex items-center justify-between p-6 bg-white border-2 border-slate-50 rounded-[2rem] shadow-sm hover:border-indigo-100 hover:bg-indigo-50/30 transition-all group">
+                      <div>
+                        <div class="flex items-center gap-3">
+                          <span class="text-2xl font-black text-gray-900">${ex.word}</span>
+                          <span class="px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded-md text-[10px] font-black uppercase tracking-tighter">
+                            ${ex.word.length} ${t('lettersCount')}
+                          </span>
+                        </div>
+                        <div class="text-base text-gray-500 font-medium mt-1">
+                          <span class="ipa-font opacity-60">${ex.transcription}</span> — ${state.language === 'zh' ? ex.translationZh : ex.translation}
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-3">
+                        <button onclick="playSegment('${ex.word}', false)" class="w-10 h-10 flex items-center justify-center rounded-full bg-indigo-600 text-white hover:bg-indigo-700">
+                          <i class="fas fa-play ml-0.5 text-xs"></i>
+                        </button>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderRuleDetail() {
+      if (!state.selectedRule) return '';
+      const rule = PHONICS_RULES.find(r => r.id === state.selectedRule);
+      if (!rule) return '';
+
+      return `
+        <div class="p-4 animate-slideUp">
+          <div class="flex items-center gap-3 mb-6">
+            <button onclick="setState({view: 'rules'})" class="w-10 h-10 flex items-center justify-center bg-white shadow-sm border border-gray-100 rounded-xl">
+              <i class="fas fa-arrow-left"></i>
+            </button>
+            <h1 class="text-xl font-black text-gray-800 uppercase tracking-widest">${t('ruleInsight')}</h1>
+          </div>
+
+          <div class="bg-white rounded-[3rem] shadow-2xl p-10 md:p-14 mb-8">
+            <span class="inline-block px-4 py-1.5 bg-emerald-100 text-emerald-700 rounded-xl text-xs font-black uppercase tracking-widest mb-6">
+              ${t(rule.category)}
+            </span>
+            <h1 class="text-5xl font-black text-gray-900 mb-6 leading-tight">
+              ${state.language === 'zh' ? rule.titleZh : rule.title}
+            </h1>
+            <p class="text-2xl text-gray-600 leading-relaxed mb-12 font-medium">
+              ${state.language === 'zh' ? rule.descriptionZh : rule.description}
+            </p>
+
+            <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">${t('appliedExamples')}</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              ${rule.examples.map((ex, i) => `
+                <div class="flex items-center justify-between p-6 bg-slate-50 border border-slate-100 rounded-[2rem] group transition-all hover:bg-white hover:border-emerald-200 hover:shadow-xl">
+                  <div>
+                    <div class="text-2xl font-black text-gray-900">${ex.word}</div>
+                    <div class="text-sm text-gray-500 font-medium mt-1">
+                      <span class="ipa-font opacity-60">${ex.transcription}</span> — ${state.language === 'zh' ? ex.translationZh : ex.translation}
+                    </div>
+                  </div>
+                  <button onclick="playSegment('${ex.word}', false)" class="w-12 h-12 flex items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700">
+                    <i class="fas fa-play ml-0.5"></i>
+                  </button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function render() {
+      const root = document.getElementById('root');
+      let content = '';
+      
+      switch (state.view) {
+        case 'home':
+          content = renderHome();
+          break;
+        case 'alphabet':
+          content = renderAlphabet();
+          break;
+        case 'rules':
+          content = renderRules();
+          break;
+        case 'reader':
+          content = renderReader();
+          break;
+        case 'reader-output':
+          content = renderReaderOutput();
+          break;
+        case 'letter-detail':
+          content = renderLetterDetail();
+          break;
+        case 'rule-detail':
+          content = renderRuleDetail();
+          break;
+      }
+
+      root.innerHTML = content;
+    }
+
+    function setState(newState) {
+      state = { ...state, ...newState };
+      render();
+      window.scrollTo(0, 0);
+    }
+
+    function confirmReader() {
+      const segments = state.readerText.split('\n').map(s => s.trim()).filter(s => /[а-яА-ЯёЁ]/.test(s));
+      
+      if (segments.length === 0) {
+        alert(t('readerEmpty'));
+        return;
+      }
+
+      if (segments.length > 100) {
+        alert(t('readerWarningLimit'));
+        return;
+      }
+
+      const hasLongSegment = segments.some(s => s.length > 200);
+      if (hasLongSegment && !window.confirm(t('readerWarningLong'))) {
+        return;
+      }
+
+      setState({ processedSegments: segments, view: 'reader-output' });
+    }
+
+    async function playSegment(text, slow = false) {
+      state.isLoading = true;
+      render();
+      try {
+        await playAudio(text, slow);
+      } catch (err) {
+        console.error('Error:', err);
+      }
+      state.isLoading = false;
+      render();
+    }
+
+    // ===== INIT =====
+    window.addEventListener('load', () => {
+      initVoices();
+      if ('voiceschanged' in window.speechSynthesis) {
+        window.speechSynthesis.addEventListener('voiceschanged', initVoices);
+      }
+      render();
+      
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW registration failed:', err));
+      }
+    });
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      state.deferredPrompt = e;
+    });
   </script>
-<script type="module" src="/index.tsx"></script>
 </body>
 </html>
